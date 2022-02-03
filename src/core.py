@@ -33,3 +33,41 @@ def estimate_jac(X: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         cs[t] = reg.intercept_
 
     return js, cs
+
+
+def estimate_stability_using_particle(js: np.ndarray, p: int) -> np.ndarray:
+    """Estimate maximal lyapunov exponent given a sequence of Jacobians using the technique of ___.
+    Push a random unit vector through the sequence and measure the deformation."
+
+    Args:
+        js (np.ndarray): Sequence of Jacobians, stored in a multi-dimensional array.
+        p (int): Number of random unit vectors to  use.
+
+    Returns:
+        lams: p-dimensional array containing estimates of maximal Lyapunov exponent.
+    """
+
+    T, N = js.shape[0], js.shape[1]
+
+    # generate p vectors on the unit sphere in R^n
+    U = np.random.rand(N, p)
+    U /= np.linalg.norm(U, axis=1)
+
+    # preallocate memory for lyapunov exponents
+    lams = np.zeros(p)
+
+    for t in range(T):
+
+        # push U through jacobian at time t
+        U = js[t] @ U
+
+        # measure deformation and store log
+        lams += np.log(np.linalg.norm(U, axis=1))
+
+        # renormalize U
+        U /= np.linalg.norm(U, axis=1)
+
+    # average by number time steps to get lyapunov exponent estimates
+    lams /= T
+
+    return lams
