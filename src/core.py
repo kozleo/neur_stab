@@ -26,7 +26,7 @@ def estimate_jac(X: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         X_tp1 = X[:, t + 1]
 
         # find the affine map that takes X_t to X_tp1
-        reg = LinearRegression().fit(X_t, X_tp1)
+        reg = LinearRegression(fit_intercept=False).fit(X_t, X_tp1)
 
         # extract J_t and c_t from the affine map
         js[t] = reg.coef_
@@ -51,7 +51,7 @@ def estimate_stability_using_particle(js: np.ndarray, p: int) -> np.ndarray:
 
     # generate p vectors on the unit sphere in R^n
     U = np.random.rand(N, p)
-    U /= np.linalg.norm(U, axis=1)
+    U /= np.linalg.norm(U, axis=0)
 
     # preallocate memory for lyapunov exponents
     lams = np.zeros(p)
@@ -62,10 +62,10 @@ def estimate_stability_using_particle(js: np.ndarray, p: int) -> np.ndarray:
         U = js[t] @ U
 
         # measure deformation and store log
-        lams += np.log(np.linalg.norm(U, axis=1))
+        lams += np.log(np.linalg.norm(U, axis=0))
 
         # renormalize U
-        U /= np.linalg.norm(U, axis=1)
+        U /= np.linalg.norm(U, axis=0)
 
     # average by number time steps to get lyapunov exponent estimates
     lams /= T
