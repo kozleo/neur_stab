@@ -50,7 +50,7 @@ def estimate_stability_using_particle(js: np.ndarray, p: int) -> np.ndarray:
     T, N = js.shape[0], js.shape[1]
 
     # generate p vectors on the unit sphere in R^n
-    U = np.random.rand(N, p)
+    U = np.random.randn(N, p)
     U /= np.linalg.norm(U, axis=0)
 
     # preallocate memory for lyapunov exponents
