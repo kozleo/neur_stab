@@ -26,7 +26,7 @@ def estimate_jac(X: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         X_tp1 = X[:, t + 1]
 
         # find the affine map that takes X_t to X_tp1
-        reg = LinearRegression(fit_intercept=False).fit(X_t, X_tp1)
+        reg = LinearRegression(fit_intercept=True).fit(X_t, X_tp1)
 
         # extract J_t and c_t from the affine map
         js[t] = reg.coef_
@@ -35,7 +35,10 @@ def estimate_jac(X: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return js, cs
 
 
-def estimate_stability_using_particle(js: np.ndarray, p: int) -> np.ndarray:
+def estimate_stability_using_particle(
+    js: np.ndarray, p: int, W, test_eigenvectors=False
+) -> np.ndarray:
+
     """Estimate maximal lyapunov exponent given a sequence of Jacobians using the technique of ___.
     Push a random unit vector through the sequence and measure the deformation."
 
@@ -53,6 +56,17 @@ def estimate_stability_using_particle(js: np.ndarray, p: int) -> np.ndarray:
     U = np.random.randn(N, p)
     U /= np.linalg.norm(U, axis=0)
 
+    if test_eigenvectors:
+        # generate p vectors along the eigenvectors of js[0]
+        eig_vals, eig_vecs = np.linalg.eig(js[0])
+        ind_max_eig = np.argmax(np.abs(eig_vals))
+        leading_eig_vec = np.real(eig_vecs[:, 0])
+        random_scalings = np.random.normal(0, 1, p)
+        U = leading_eig_vec[:, None] * random_scalings + np.random.normal(
+            0, 0.001, (N, p)
+        )
+        U /= np.linalg.norm(U, axis=0)
+
     # preallocate memory for lyapunov exponents
     lams = np.zeros(p)
 
@@ -60,6 +74,58 @@ def estimate_stability_using_particle(js: np.ndarray, p: int) -> np.ndarray:
 
         # push U through jacobian at time t
         U = js[t] @ U
+
+        # measure deformation and store log
+        lams += np.log(np.linalg.norm(U, axis=0))
+
+        # renormalize U
+        U /= np.linalg.norm(U, axis=0)
+
+    # average by number time steps to get lyapunov exponent estimates
+    lams /= T
+
+    return lams
+
+
+def estimate_stability_using_particle_from_true_jac(
+    W: np.ndarray, p: int, T: int, test_eigenvectors=False
+) -> np.ndarray:
+
+    """Estimate maximal lyapunov exponent given a sequence of Jacobians using the technique of ___.
+    Push a random unit vector through the sequence and measure the deformation."
+
+    Args:
+        W (np.ndarray): Sequence of Jacobians, stored in a multi-dimensional array.
+        p (int): Number of random unit vectors to  use.
+
+    Returns:
+        lams: p-dimensional array containing estimates of maximal Lyapunov exponent.
+    """
+
+    N = W.shape[1]
+
+    # generate p vectors on the unit sphere in R^n
+    U = np.random.randn(N, p)
+    U /= np.linalg.norm(U, axis=0)
+
+    if test_eigenvectors:
+        # generate p vectors along the eigenvectors of js[0]
+        eig_vals, eig_vecs = np.linalg.eig(W)
+        ind_max_eig = np.argmax(np.abs(eig_vals))
+        leading_eig_vec = np.real(eig_vecs[:, 0])
+        random_scalings = np.random.normal(0, 1, p)
+        U = leading_eig_vec[:, None] * random_scalings + np.random.normal(
+            0, 0.001, (N, p)
+        )
+        U /= np.linalg.norm(U, axis=0)
+
+    # preallocate memory for lyapunov exponents
+    lams = np.zeros(p)
+
+    for t in range(T):
+
+        # push U through jacobian at time t
+        U = W @ U
 
         # measure deformation and store log
         lams += np.log(np.linalg.norm(U, axis=0))
