@@ -1,2 +1,4 @@
 *.egg-info
+*checkpoint.ipynb
+*.pyc
 data
