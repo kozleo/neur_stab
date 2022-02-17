@@ -1,6 +1,7 @@
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from typing import Tuple
+import matplotlib.pyplot as plt
 
 
 def estimate_jac(X: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
@@ -114,9 +115,7 @@ def estimate_stability_using_particle_from_true_jac(
         ind_max_eig = np.argmax(np.abs(eig_vals))
         leading_eig_vec = np.real(eig_vecs[:, 0])
         random_scalings = np.random.normal(0, 1, p)
-        U = leading_eig_vec[:, None] * random_scalings + np.random.normal(
-            0, 0.01, (N, p)
-        )
+        U = leading_eig_vec[:, None] * random_scalings + np.random.normal(0, 1, (N, p))
         U /= np.linalg.norm(U, axis=0)
 
     # preallocate memory for lyapunov exponents
@@ -124,14 +123,14 @@ def estimate_stability_using_particle_from_true_jac(
 
     # choose if generalized Jacobian or identity metric
     if gen_jac:
-        J = eig_vecs @ W @ np.linalg.inv(eig_vecs)
+        J = np.linalg.inv(eig_vecs) @ W @ eig_vecs
     else:
         J = W
 
     for t in range(T):
 
         # push U through jacobian at time t
-        U = W @ U
+        U = J @ U
 
         # measure deformation and store log
         lams += np.log(np.linalg.norm(U, axis=0))
