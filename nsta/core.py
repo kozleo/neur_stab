@@ -50,7 +50,7 @@ def estimate_stability_using_particle(
         lams: p-dimensional array containing estimates of maximal Lyapunov exponent.
     """
 
-    T, N = js.shape[0], js.shape[1]
+    K, N = js.shape[0], js.shape[1]
 
     # generate p vectors on the unit sphere in R^n
     U = np.random.randn(N, p)
@@ -70,10 +70,10 @@ def estimate_stability_using_particle(
     # preallocate memory for lyapunov exponents
     lams = np.zeros(p)
 
-    for t in range(T):
+    for k in range(K):
 
         # push U through jacobian at time t
-        U = js[t] @ U
+        U = js[k] @ U
 
         # measure deformation and store log
         lams += np.log(np.linalg.norm(U, axis=0))
@@ -82,13 +82,13 @@ def estimate_stability_using_particle(
         U /= np.linalg.norm(U, axis=0)
 
     # average by number time steps to get lyapunov exponent estimates
-    lams /= T
+    lams /= K
 
     return lams
 
 
 def estimate_stability_using_particle_from_true_jac(
-    W: np.ndarray, p: int, T: int, test_eigenvectors=False
+    W: np.ndarray, p: int, T: int, test_eigenvectors=False, gen_jac=False
 ) -> np.ndarray:
 
     """Estimate maximal lyapunov exponent given a sequence of Jacobians using the technique of ___.
@@ -115,12 +115,18 @@ def estimate_stability_using_particle_from_true_jac(
         leading_eig_vec = np.real(eig_vecs[:, 0])
         random_scalings = np.random.normal(0, 1, p)
         U = leading_eig_vec[:, None] * random_scalings + np.random.normal(
-            0, 0.001, (N, p)
+            0, 0.01, (N, p)
         )
         U /= np.linalg.norm(U, axis=0)
 
     # preallocate memory for lyapunov exponents
     lams = np.zeros(p)
+
+    # choose if generalized Jacobian or identity metric
+    if gen_jac:
+        J = eig_vecs @ W @ np.linalg.inv(eig_vecs)
+    else:
+        J = W
 
     for t in range(T):
 
