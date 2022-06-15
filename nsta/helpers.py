@@ -14,6 +14,43 @@ def linear_vRNN_jac(x, W):
     return W
 
 
+def lorenz_update(x, y, z, s=10, r=28, b=8 / 3):
+    """
+    Given:
+       x, y, z: a point of interest in three dimensional space
+       s, r, b: parameters defining the lorenz attractor
+    Returns:
+       x_dot, y_dot, z_dot: values of the lorenz attractor's partial
+           derivatives at the point x, y, z
+    """
+    x_dot = s * (y - x)
+    y_dot = r * x - y - x * z
+    z_dot = x * y - b * z
+
+    return x_dot, y_dot, z_dot
+
+
+def lorenz_jac(x, y, z, dt, s=10, r=28, b=8 / 3):
+    J = np.eye(3) + dt * np.asarray([[-s, s, 0], [r - z, -1, -x], [y, x, -b]])
+    return J
+
+
+def nonlinear_vRNN_update(x, W, t, baseline_FR):
+    # update for nonlinear RNN
+    return np.tanh(W @ x)  # + baseline_FR * np.sin(t / 10)
+    # +  baseline_FR*np.sin(t/10) + 0.01*np.random.normal(0,1,W.shape[0])#+ 0.1*np.sin(t/10)
+
+
+def nonlinear_vRNN_jac(x, W):
+    # jacobian of nonlinear RNN
+    return W @ np.diag(sech2(W @ x))
+
+
+def sech2(x):
+    # sech(x)^2 = 1-tanh(x)^2
+    return 1 - np.tanh(x) ** 2
+
+
 def get_max_singular_value(W):
     _, s, _ = np.linalg.svd(W)
     return np.max(s)
@@ -27,10 +64,10 @@ def get_max_abs_eig_value(W):
     _, s_V, _ = np.linalg.svd(eigvecs)
     cond = np.max(s_V) / np.min(s_V)
 
-    return eig_vals[ind_max_eig], cond
+    return np.abs(eig_vals[ind_max_eig]), cond
 
 
-def run_random_vRNN_sim(n, g, T, p):
+def run_random_vRNN_sim(n, g, T, p, nl=True):
     # run an n dimensional linear RNN for T timesteps, starting from p different initial conditions.
 
     # n: number of neurons
@@ -53,10 +90,13 @@ def run_random_vRNN_sim(n, g, T, p):
         xsOneTrial = []
         JsOneTrial = []
         for time in range(T):
-
-            x = linear_vRNN_update(x, W, time, baseline_FR)
+            if nl:
+                x = nonlinear_vRNN_update(x, W, time, baseline_FR)
+                JsOneTrial.append(nonlinear_vRNN_jac(x, W))
+            else:
+                x = linear_vRNN_update(x, W, time, baseline_FR)
+                JsOneTrial.append(linear_vRNN_jac(x, W))
             xsOneTrial.append(x)
-            JsOneTrial.append(linear_vRNN_jac(x, W))
 
         xsAllTrials.append(xsOneTrial)
         JsAllTrials.append(JsOneTrial)
